@@ -38,24 +38,24 @@ BoardRenderer.prototype._setupRoomButtons = function () {
   const roomGameType = document.getElementById('roomGameType');
   const aiLevelSelect = document.getElementById('aiLevelSelect');
   if (roomGameType && aiLevelSelect) {
+    // 提前创建 PvP 标签，默认隐藏
+    let pvpLabel = document.getElementById('pvpLabel');
+    if (!pvpLabel) {
+      pvpLabel = document.createElement('span');
+      pvpLabel.id = 'pvpLabel';
+      pvpLabel.className = 'ai-select pvp-label';
+      pvpLabel.textContent = '👥 人类棋局';
+      pvpLabel.style.display = 'none';
+      aiLevelSelect.parentNode.insertBefore(pvpLabel, aiLevelSelect.nextSibling);
+    }
+
     roomGameType.addEventListener('change', () => {
       if (roomGameType.value === 'pvp') {
-        // 替换为"人类棋局"标签
-        aiLevelSelect.style.display = 'none';
-        let label = document.getElementById('pvpLabel');
-        if (!label) {
-          label = document.createElement('span');
-          label.id = 'pvpLabel';
-          label.className = 'pvp-label';
-          label.textContent = '👥 人类棋局';
-          aiLevelSelect.parentNode.insertBefore(label, aiLevelSelect.nextSibling);
-        }
-        label.style.display = '';
+        aiLevelSelect.hidden = true;
+        pvpLabel.hidden = false;
       } else {
-        // 恢复AI等级选择
-        aiLevelSelect.style.display = '';
-        const label = document.getElementById('pvpLabel');
-        if (label) label.style.display = 'none';
+        aiLevelSelect.hidden = false;
+        pvpLabel.hidden = true;
       }
     });
   }
@@ -73,6 +73,10 @@ BoardRenderer.prototype.createRoom = async function (gameType, aiLevel) {
     this._roomServerStatus = (gameType === 'pvp') ? 'waiting' : 'playing';
     // 重启棋盘，确保干净初始状态
     this.restart();
+    // PvP 等待对手加入时不走计时器
+    if (gameType === 'pvp') {
+      this._stopTimer();
+    }
     this._startRoomPolling();
     this._updateRoomUI();
     this.updatePanel();
@@ -169,6 +173,11 @@ BoardRenderer.prototype._startRoomPolling = function () {
     try {
       const res = await api.roomPoll(this.roomCode, this.lastSeenMoveNumber);
       const newMoves = res.moves || [];
+      
+      // 房间状态从 waiting 变为 playing：对手已加入，启动计时器
+      if (this._roomServerStatus === 'waiting' && res.status === 'playing') {
+        this._startTimer();
+      }
       this._roomServerStatus = res.status;  // 保存服务器状态
 
       for (const m of newMoves) {

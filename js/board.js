@@ -721,7 +721,14 @@ class BoardRenderer {
     const hasResult = !!this.game.result;
     if (btnRestart) btnRestart.style.display = hasResult ? 'none' : 'inline-block';
     if (btnContinue) btnContinue.style.display = hasResult ? 'inline-block' : 'none';
-    if (btnUndo) btnUndo.style.display = hasResult ? 'none' : 'inline-block';
+    if (btnUndo) {
+      // 房间模式下禁止悔棋
+      if (this.roomCode) {
+        btnUndo.style.display = 'none';
+      } else {
+        btnUndo.style.display = hasResult ? 'none' : 'inline-block';
+      }
+    }
     if (btnResign) btnResign.style.display = hasResult ? 'none' : 'inline-block';
     if (btnSave) btnSave.style.display = hasResult ? 'none' : 'inline-block';
 
@@ -737,26 +744,44 @@ class BoardRenderer {
     if (this.roomCode) {
       const roomResult = result === 'w' ? 'w' : (result === 'b' ? 'b' : 'draw');
       api.roomFinish(this.roomCode, roomResult).catch(() => {});
+      this._stopRoomPolling();
     }
 
-    if (this.currentUser) {
-      try {
-        const matchResult = isPlayerWin ? 'win' : (isDraw ? 'draw' : 'loss');
-        const pgn = this.game.moveList.join(' ');
-        const res = await api.post('/api/match', {
-          ai_level: this.ai.level,
-          result: matchResult,
-          pgn,
-        });
-        this.currentUser = res.user;
-        this.progress = this._loadProgress();
-      } catch (e) {
-        console.error('同步对局结果到服务端失败:', e);
-        // 降级本地更新
+    // PvP 模式下不记录 AI 进度
+    if (!this.roomCode || this.roomGameType !== 'pvp') {
+      if (this.currentUser) {
+        try {
+          const matchResult = isPlayerWin ? 'win' : (isDraw ? 'draw' : 'loss');
+          const pgn = this.game.moveList.join(' ');
+          const res = await api.post('/api/match', {
+            ai_level: this.ai.level,
+            result: matchResult,
+            pgn,
+          });
+          this.currentUser = res.user;
+          this.progress = this._loadProgress();
+        } catch (e) {
+          console.error('同步对局结果到服务端失败:', e);
+          if (isPlayerWin) {
+            this.progress.wins++;
+            if (this.progress.currentLevel < 10) this.progress.currentLevel++;
+            if (this.progress.currentLevel > this.progress.maxLevel) this.progress.maxLevel = this.progress.currentLevel;
+          } else if (isDraw) {
+            this.progress.draws++;
+          } else {
+            this.progress.losses++;
+          }
+          this._saveProgress();
+        }
+      } else {
         if (isPlayerWin) {
           this.progress.wins++;
-          if (this.progress.currentLevel < 10) this.progress.currentLevel++;
-          if (this.progress.currentLevel > this.progress.maxLevel) this.progress.maxLevel = this.progress.currentLevel;
+          if (this.progress.currentLevel < 10) {
+            this.progress.currentLevel++;
+          }
+          if (this.progress.currentLevel > this.progress.maxLevel) {
+            this.progress.maxLevel = this.progress.currentLevel;
+          }
         } else if (isDraw) {
           this.progress.draws++;
         } else {
@@ -764,21 +789,6 @@ class BoardRenderer {
         }
         this._saveProgress();
       }
-    } else {
-      if (isPlayerWin) {
-        this.progress.wins++;
-        if (this.progress.currentLevel < 10) {
-          this.progress.currentLevel++;
-        }
-        if (this.progress.currentLevel > this.progress.maxLevel) {
-          this.progress.maxLevel = this.progress.currentLevel;
-        }
-      } else if (isDraw) {
-        this.progress.draws++;
-      } else {
-        this.progress.losses++;
-      }
-      this._saveProgress();
     }
 
     this.updatePanel();
@@ -790,7 +800,9 @@ class BoardRenderer {
     const btnRetry = document.getElementById('btnRetry');
 
     if (resultTitle) {
-      if (isPlayerWin) {
+      if (this.roomCode && this.roomGameType === 'pvp') {
+        resultTitle.textContent = isPlayerWin ? '🎉 你赢了！' : (isDraw ? '握手言和' : '对手获胜');
+      } else if (isPlayerWin) {
         resultTitle.textContent = this.progress.currentLevel <= 10 && this.ai.level < 10
           ? `🎉 晋级成功！`
           : '👑 通关全等级！';
@@ -802,7 +814,9 @@ class BoardRenderer {
     }
 
     if (resultDetail) {
-      if (isPlayerWin) {
+      if (this.roomCode && this.roomGameType === 'pvp') {
+        resultDetail.textContent = isPlayerWin ? '恭喜你战胜了对手！\n人类的棋局比我们机器人精彩啊' : (isDraw ? '双方势均力敌，不分胜负\n人类的棋局比我们机器人精彩啊' : '别灰心，再来一局！\n人类的棋局比我们机器人精彩啊');
+      } else if (isPlayerWin) {
         resultDetail.textContent = `恭喜你战胜第 ${this.ai.level} 级 ${this.ai.getTitle()}！\n下一挑战：第 ${Math.min(10, this.ai.level + 1)} 级 ${AI_TITLES[Math.min(10, this.ai.level + 1)]}`;
       } else if (isDraw) {
         resultDetail.textContent = `和棋 · ${this.game.drawReason || '双方势均力敌'}\n可重新挑战第 ${this.ai.level} 级`;
@@ -811,8 +825,8 @@ class BoardRenderer {
       }
     }
 
-    if (btnNext) btnNext.style.display = isPlayerWin && this.ai.level < 10 ? 'inline-block' : 'none';
-    if (btnRetry) btnRetry.style.display = !isPlayerWin || this.ai.level >= 10 ? 'inline-block' : 'none';
+    if (btnNext) btnNext.style.display = (!this.roomCode || this.roomGameType !== 'pvp') && isPlayerWin && this.ai.level < 10 ? 'inline-block' : 'none';
+    if (btnRetry) btnRetry.style.display = (this.roomCode && this.roomGameType === 'pvp') || !isPlayerWin || this.ai.level >= 10 ? 'inline-block' : 'none';
 
     if (resultOverlay) resultOverlay.classList.add('visible');
 
@@ -1044,6 +1058,11 @@ class BoardRenderer {
   }
 
   restart() {
+    // 如果正在房间中，先退出房间
+    if (this.roomCode) {
+      this._leaveRoom();
+      return;
+    }
     if (typeof pikafishBridge !== 'undefined') {
       pikafishBridge.ucinewgame().catch(() => {});
     }
@@ -1070,6 +1089,8 @@ class BoardRenderer {
   }
 
   undo() {
+    // 房间模式下禁止悔棋（PvP走法已同步，AI观战也不应悔棋）
+    if (this.roomCode) return;
     if (this.isAiThinking) return;
     if (this.game.history.length === 0) return;
 
