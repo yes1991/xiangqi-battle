@@ -33,6 +33,32 @@ BoardRenderer.prototype._setupRoomButtons = function () {
   if (btnLeaveRoom) {
     btnLeaveRoom.addEventListener('click', () => this._leaveRoom());
   }
+
+  // 模式切换：人人对战 ↔ AI对战 动态变更下方等级选择器
+  const roomGameType = document.getElementById('roomGameType');
+  const aiLevelSelect = document.getElementById('aiLevelSelect');
+  if (roomGameType && aiLevelSelect) {
+    roomGameType.addEventListener('change', () => {
+      if (roomGameType.value === 'pvp') {
+        // 替换为"人类棋局"标签
+        aiLevelSelect.style.display = 'none';
+        let label = document.getElementById('pvpLabel');
+        if (!label) {
+          label = document.createElement('span');
+          label.id = 'pvpLabel';
+          label.className = 'pvp-label';
+          label.textContent = '👥 人类棋局';
+          aiLevelSelect.parentNode.insertBefore(label, aiLevelSelect.nextSibling);
+        }
+        label.style.display = '';
+      } else {
+        // 恢复AI等级选择
+        aiLevelSelect.style.display = '';
+        const label = document.getElementById('pvpLabel');
+        if (label) label.style.display = 'none';
+      }
+    });
+  }
 };
 
 // ---- 创建房间 ----
@@ -268,6 +294,11 @@ BoardRenderer.prototype._leaveRoom = function () {
   this.isSpectator = false;
   this.roomGameType = 'ai';
   this._roomServerStatus = '';
+  // 恢复AI等级选择器
+  const aiLevelSelect = document.getElementById('aiLevelSelect');
+  if (aiLevelSelect) aiLevelSelect.style.display = '';
+  const pvpLabel = document.getElementById('pvpLabel');
+  if (pvpLabel) pvpLabel.style.display = 'none';
   this._updateRoomUI();
   this.restart();
 };
