@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>中国象棋 - 网页版</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <!-- 顶部导航栏 -->
+  <div class="top-nav" id="topNav">
+    <div class="logo">象棋对战</div>
+    <div class="user-area" id="userArea">
+      <button class="btn btn-sm" id="btnLogin">登录 / 注册</button>
+    </div>
+  </div>
+
+  <!-- AI 信息（上方） -->
+  <div class="player-bar ai-bar" id="aiBar">
+    <div class="avatar">🤖</div>
+    <div class="info">
+      <div class="name">AI 对手</div>
+      <div class="meta" id="aiMeta">第 1 级 · 学徒初段</div>
+      <div class="engine-status" id="engineStatus" style="display:none"></div>
+    </div>
+    <div class="timer" id="aiTimer">60s / 20:00</div>
+  </div>
+
+  <!-- 房间信息 -->
+  <div class="room-bar" id="roomInfo" style="display:none">
+    <span class="room-label">🏠 房间</span>
+    <span class="room-code" id="roomCodeDisplay">------</span>
+    <span class="room-status" id="roomStatusText"></span>
+    <span class="spectator-badge" id="spectatorBadge" style="display:none">👁 观战</span>
+    <button class="btn btn-sm" id="btnCopyLink">📋 复制链接</button>
+    <button class="btn btn-sm btn-leave" id="btnLeaveRoom">退出房间</button>
+  </div>
+
+  <!-- 棋盘 -->
+  <div class="board-wrap" id="boardWrap"></div>
+
+  <!-- 玩家信息（下方） -->
+  <div class="player-bar user-bar active" id="userBar">
+    <div class="avatar" id="userAvatar">👤</div>
+    <div class="info">
+      <div class="name" id="userNameDisplay">游客</div>
+      <div class="meta" id="userMeta">执红先行</div>
+    </div>
+    <div class="timer" id="userTimer">60s / 20:00</div>
+  </div>
+
+  <!-- 统计面板 -->
+  <div class="stats-bar" id="statsBar">
+    <div class="stat">
+      <div class="stat-num" id="statWin">0</div>
+      <div class="stat-label">胜</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num" id="statDraw">0</div>
+      <div class="stat-label">和</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num" id="statLoss">0</div>
+      <div class="stat-label">负</div>
+    </div>
+    <div class="stat divider"></div>
+    <div class="stat">
+      <div class="stat-num" id="statLevel">1</div>
+      <div class="stat-label">当前挑战</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num" id="statMaxLevel">1</div>
+      <div class="stat-label">最高通关</div>
+    </div>
+  </div>
+
+  <!-- 控制面板 -->
+  <div class="control-panel">
+    <button class="btn btn-secondary" id="btnFlip">🔄 换边</button>
+    <button class="btn btn-secondary" id="btnUndo">↩️ 悔棋</button>
+    <button class="btn btn-danger" id="btnResign">🏳️ 认输</button>
+    <button class="btn btn-primary" id="btnRestart">🔁 重新开始</button>
+    <button class="btn btn-primary" id="btnContinue" style="display:none">🔁 继续下一局</button>
+    <button class="btn btn-secondary" id="btnSave">💾 保存并暂离</button>
+    <button class="btn btn-primary" id="btnCreateRoom">🌐 创建房间</button>
+    <select class="ai-select" id="roomGameType">
+      <option value="ai">AI对战（朋友观战）</option>
+      <option value="pvp">人人对战</option>
+    </select>
+    <select class="ai-select" id="aiLevelSelect">
+      <option value="1">第 1 级 · 学徒初段</option>
+      <option value="2">第 2 级 · 学徒中段</option>
+      <option value="3">第 3 级 · 学徒高段</option>
+      <option value="4">第 4 级 · 业余初段</option>
+      <option value="5">第 5 级 · 业余中段</option>
+      <option value="6">第 6 级 · 业余高段</option>
+      <option value="7">第 7 级 · 地方大师</option>
+      <option value="8">第 8 级 · 棋协大师</option>
+      <option value="9">第 9 级 · 特级大师</option>
+      <option value="10">第 10 级 · 天元/棋神</option>
+    </select>
+  </div>
+
+  <!-- 全网战绩 -->
+  <div class="battle-stats-bar" id="battleStatsBar">
+    <span class="battle-stats-label">📊 全网战绩</span>
+    <span class="battle-stats-content" id="battleStatsContent">加载中...</span>
+  </div>
+
+  <!-- 将军提示 -->
+  <div class="check-alert" id="checkAlert"></div>
+
+  <!-- 胜负/晋级弹窗 -->
+  <div class="result-overlay" id="resultOverlay">
+    <div class="result-card">
+      <h2 id="resultTitle">红方胜！</h2>
+      <div class="result-detail" id="resultDetail"></div>
+      <div class="result-btns" id="resultBtns">
+        <button class="btn btn-primary" id="btnNextLevel" style="display:none">挑战下一级</button>
+        <button class="btn btn-secondary" id="btnRetry" style="display:none">重新挑战</button>
+        <button class="btn btn-secondary" id="btnCloseResult">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 语音鼓励 Toast -->
+  <div class="voice-toast" id="voiceToast">
+    <div class="voice-toast-icon" id="voiceToastIcon">🌟</div>
+    <div class="voice-toast-text" id="voiceToastText"></div>
+  </div>
+
+  <!-- 排行榜 -->
+  <div class="leaderboard-bar" id="leaderboardBar">
+    <div class="leaderboard-title">🏆 战绩排行榜（前5名）</div>
+    <div class="leaderboard-list" id="leaderboardList">
+      <div class="leaderboard-row" style="justify-content:center;color:#888">暂无注册用户战绩</div>
+    </div>
+  </div>
+
+  <!-- 桌面端右侧排行榜 -->
+  <div class="side-panel" id="sidePanel">
+    <div class="leaderboard-title">🏆 战绩排行榜（前5名）</div>
+    <div class="leaderboard-list" id="leaderboardSideList"></div>
+  </div>
+
+  <!-- 继续上次对局提示 -->
+  <div class="resume-overlay" id="resumeOverlay">
+    <div class="resume-card">
+      <h2>⏸ 检测到未完成的棋局</h2>
+      <p>你有一盘进行中的对局，是否继续？</p>
+      <div class="resume-btns">
+        <button class="btn btn-primary" id="btnResume">继续对局</button>
+        <button class="btn btn-secondary" id="btnDiscard">开始新局</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 登录/注册弹窗 -->
+  <div class="auth-overlay" id="authOverlay">
+    <div class="auth-card">
+      <div class="auth-tabs">
+        <button class="auth-tab" data-tab="login" id="tabLogin">已有账号登录</button>
+        <button class="auth-tab active" data-tab="register" id="tabRegister">新用户注册</button>
+      </div>
+
+      <!-- 登录表单 -->
+      <div class="auth-form hidden" id="formLogin">
+        <div class="input-group">
+          <label>用户名</label>
+          <input type="text" id="loginUsername" placeholder="请输入用户名" maxlength="16">
+        </div>
+        <div class="input-group">
+          <label>密码</label>
+          <input type="password" id="loginPassword" placeholder="请输入密码" maxlength="20">
+        </div>
+        <div class="auth-error" id="loginError"></div>
+        <button class="btn btn-primary auth-submit" id="btnDoLogin">登 录</button>
+      </div>
+
+      <!-- 注册表单 -->
+      <div class="auth-form" id="formRegister">
+        <div class="auth-tips">注册后可保存对战进度，跨设备挑战更高等级</div>
+        <div class="input-group">
+          <label>用户名</label>
+          <input type="text" id="regUsername" placeholder="2-16位字母/数字/下划线" maxlength="16">
+        </div>
+        <div class="input-group">
+          <label>密码</label>
+          <input type="password" id="regPassword" placeholder="6-20位密码" maxlength="20">
+        </div>
+        <div class="input-group">
+          <label>确认密码</label>
+          <input type="password" id="regPassword2" placeholder="再次输入密码" maxlength="20">
+        </div>
+        <div class="auth-error" id="regError"></div>
+        <button class="btn btn-primary auth-submit" id="btnDoRegister">立即注册</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/rules.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/pikafish-bridge.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/ai.js"></script>
+  <script src="js/board.js"></script>
+  <script src="js/room.js"></script>
+  <script>
+    (function() {
+      const game = new XiangqiGame();
+      const ai = new SimpleAI('b', 1);
+      const board = new BoardRenderer('boardWrap', game, ai);
+
+      document.getElementById('btnRestart').addEventListener('click', () => board.restart());
+      document.getElementById('btnContinue').addEventListener('click', () => board.restart());
+      document.getElementById('btnSave').addEventListener('click', () => board.saveSnapshot());
+      document.getElementById('btnCloseResult').addEventListener('click', () => board.closeResultOverlay());
+      document.getElementById('btnUndo').addEventListener('click', () => board.undo());
+      document.getElementById('btnFlip').addEventListener('click', () => board.flipSide());
+      document.getElementById('btnResign').addEventListener('click', () => board.resign());
+      document.getElementById('btnNextLevel').addEventListener('click', () => board.nextLevel());
+      document.getElementById('btnRetry').addEventListener('click', () => board.retryLevel());
+      document.getElementById('aiLevelSelect').addEventListener('change', (e) => {
+        board.setAiLevel(parseInt(e.target.value, 10));
+      });
+
+      // 恢复对局弹窗
+      document.getElementById('btnResume').addEventListener('click', () => board.resumeSnapshot());
+      document.getElementById('btnDiscard').addEventListener('click', () => board.discardSnapshot());
+      const resumeOverlay = document.getElementById('resumeOverlay');
+      resumeOverlay.addEventListener('click', function(e) {
+        if (e.target === resumeOverlay) return; // 点击遮罩不关闭，必须二选一
+      });
+
+      // 登录弹窗交互
+      const authOverlay = document.getElementById('authOverlay');
+      const tabLogin = document.getElementById('tabLogin');
+      const tabRegister = document.getElementById('tabRegister');
+      const formLogin = document.getElementById('formLogin');
+      const formRegister = document.getElementById('formRegister');
+
+      // 登录按钮事件由 board.js _renderUserArea 统一管理
+      // 点击遮罩关闭
+      authOverlay.addEventListener('click', function(e) {
+        if (e.target === authOverlay) authOverlay.classList.remove('visible');
+      });
+
+      function switchAuth(tab) {
+        if (tab === 'login') {
+          tabLogin.classList.add('active');
+          tabRegister.classList.remove('active');
+          formLogin.classList.remove('hidden');
+          formRegister.classList.add('hidden');
+        } else {
+          tabLogin.classList.remove('active');
+          tabRegister.classList.add('active');
+          formLogin.classList.add('hidden');
+          formRegister.classList.remove('hidden');
+        }
+      }
+
+      tabLogin.addEventListener('click', () => switchAuth('login'));
+      tabRegister.addEventListener('click', () => switchAuth('register'));
+
+      document.getElementById('btnDoLogin').addEventListener('click', function() { board.doLogin(); });
+      document.getElementById('btnDoRegister').addEventListener('click', function() { board.doRegister(); });
+    })();
+  </script>
+</body>
+</html>

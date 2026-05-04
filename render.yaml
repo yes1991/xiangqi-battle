@@ -1,0 +1,11 @@
+# Render.com 免费部署配置
+
+services:
+  - type: web
+    name: xiangqi
+    env: python
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: BASE_URL
+        value: https://xiangqi.onrender.com

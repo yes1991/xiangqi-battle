@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>Pikafish 引擎诊断</title>
+  <style>
+    body { font-family: sans-serif; background: #1a1a2e; color: #eee; padding: 20px; }
+    #log { background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; white-space: pre-wrap; font-family: monospace; font-size: 12px; max-height: 70vh; overflow-y: auto; }
+    button { padding: 10px 16px; margin: 6px 6px 6px 0; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; }
+    .btn-primary { background: #3b82f6; color: #fff; }
+    .btn-secondary { background: #555; color: #fff; }
+    .status { margin: 10px 0; padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.08); }
+  </style>
+</head>
+<body>
+  <h2>🧪 Pikafish 引擎诊断工具</h2>
+  <div class="status" id="status">状态：等待启动...</div>
+  <div>
+    <button class="btn-primary" id="btnStart">启动引擎</button>
+    <button class="btn-secondary" id="btnUci">发送 uci</button>
+    <button class="btn-secondary" id="btnTest1">测试开局 (3秒)</button>
+    <button class="btn-secondary" id="btnTest2">测试复杂局面 (3秒)</button>
+  </div>
+  <div id="log"></div>
+
+  <script>
+    const logEl = document.getElementById('log');
+    const statusEl = document.getElementById('status');
+    function log(msg) {
+      logEl.textContent += msg + '\n';
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    let worker = null;
+    let buffer = [];
+    let resolveLine = null;
+
+    function waitFor(keyword, timeout = 30000) {
+      return new Promise((res, rej) => {
+        const deadline = Date.now() + timeout;
+        function check() {
+          for (let i = 0; i < buffer.length; i++) {
+            if (buffer[i].includes(keyword)) {
+              const line = buffer[i];
+              buffer.splice(0, i + 1);
+              res(line);
+              return;
+            }
+          }
+          if (Date.now() > deadline) {
+            rej(new Error('timeout waiting for ' + keyword));
+            return;
+          }
+          resolveLine = (text) => {
+            if (text.includes(keyword)) res(text);
+            else setTimeout(check, 10);
+          };
+        }
+        check();
+      });
+    }
+
+    document.getElementById('btnStart').addEventListener('click', () => {
+      if (worker) { worker.terminate(); }
+      log('正在加载 Worker...');
+      worker = new Worker('js/pikafish/pikafish.worker.js');
+      worker.onmessage = (e) => {
+        if (e.data.type === 'info') {
+          log('[ENGINE] ' + e.data.data);
+          if (resolveLine) { resolveLine(e.data.data); resolveLine = null; }
+        } else if (e.data.type === 'ready') {
+          statusEl.textContent = '状态：引擎 WASM 就绪，发送 init...';
+          worker.postMessage({ cmd: 'init' });
+        } else if (e.data.type === 'initok') {
+          statusEl.textContent = '状态：引擎初始化完成（NNUE 已加载）';
+          log('=== initok ===');
+        } else if (e.data.type === 'bestmove') {
+          log('=== bestmove: ' + e.data.bestmove + ' ===');
+        } else if (e.data.type === 'error') {
+          statusEl.textContent = '状态：错误 - ' + e.data.data;
+          log('!!! ERROR: ' + e.data.data);
+        }
+      };
+      worker.onerror = (err) => {
+        log('!!! WORKER ERROR: ' + err.message);
+      };
+    });
+
+    document.getElementById('btnUci').addEventListener('click', async () => {
+      if (!worker) return alert('请先启动引擎');
+      buffer = [];
+      worker.postMessage({ cmd: 'uci' });
+      try {
+        await waitFor('uciok', 5000);
+        log('收到 uciok');
+      } catch (e) { log(e.message); }
+    });
+
+    async function runTest(fen, label) {
+      if (!worker) return alert('请先启动引擎');
+      buffer = [];
+      log('--- ' + label + ' ---');
+      log('FEN: ' + fen);
+      worker.postMessage({ cmd: 'go', fen, movetime: 3000 });
+      try {
+        await waitFor('bestmove', 12000);
+        log(label + ' 完成');
+      } catch (e) { log(label + ' 超时: ' + e.message); }
+    }
+
+    document.getElementById('btnTest1').addEventListener('click', () => {
+      runTest('rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR w - - 0 1', '开局测试');
+    });
+    document.getElementById('btnTest2').addEventListener('click', () => {
+      // 一个复杂中局，红方炮在中路
+      runTest('r1bakabr1/9/1cn4cn/p1p1p1p1p/4C4/9/P1P1P1P1P/1C2B2C1/9/RNBAKABNR w - - 0 1', '复杂中局测试');
+    });
+  </script>
+</body>
+</html>

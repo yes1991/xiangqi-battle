@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+backend/venv/
+*.egg-info/
+dist/
+
+# Database
+*.db
+*.sqlite3
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+*.env.local
+
+# Node (if any)
+node_modules/
+
+# Runtime
+.runtime/
