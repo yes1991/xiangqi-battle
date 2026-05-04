@@ -416,7 +416,7 @@ class BoardRenderer {
       this.playMoveSound();
       this.lastMove = { fromR: this.selected.r, fromC: this.selected.c, toR: r, toC: c };
       this.clearSelection();
-      this.stepTimer[this.game.state.activeColor] = 60;
+      this.stepTimer[this.game.state.activeColor] = this._stepTime();
       this.render();
       this.updatePanel();
       this._autoSaveSnapshot();
@@ -522,7 +522,7 @@ class BoardRenderer {
         if (success) {
           this.playMoveSound();
           this.lastMove = { fromR: move.fromR, fromC: move.fromC, toR: move.toR, toC: move.toC };
-          this.stepTimer[this.game.state.activeColor] = 60;
+          this.stepTimer[this.game.state.activeColor] = this._stepTime();
           this.render();
           this.updatePanel();
           this._autoSaveSnapshot();
@@ -565,6 +565,11 @@ class BoardRenderer {
     }
   }
 
+  _stepTime() {
+    // PvP 模式：2分钟；AI 模式：60秒
+    return (this.roomCode && this.roomGameType === 'pvp') ? 120 : 60;
+  }
+
   _fmtTime(sec) {
     const m = Math.floor(sec / 60).toString().padStart(2, '0');
     const s = (sec % 60).toString().padStart(2, '0');
@@ -584,10 +589,41 @@ class BoardRenderer {
     if (aiBar) {
       const isAiTurn = this.game.state.activeColor === this.ai.side;
       aiBar.classList.toggle('active', isAiTurn);
-      if (this.isAiThinking) {
-        aiMeta.innerHTML = `第 ${this.ai.level} 级 · ${this.ai.getTitle()}<span class="thinking-dots"><span></span><span></span><span></span></span>`;
+
+      const engineStatusEl = document.getElementById('engineStatus');
+
+      // PvP 模式：显示对手信息
+      if (this.roomCode && this.roomGameType === 'pvp') {
+        const opponentSide = this.roomPlayerSide === 'w' ? 'b' : 'w';
+        const isOpponentTurn = this.game.state.activeColor === opponentSide;
+        aiBar.classList.toggle('active', isOpponentTurn);
+        const opponentName = opponentSide === 'w' ? '红方对手' : '黑方对手';
+        const opponentEmoji = opponentSide === 'w' ? '🔴' : '⚫';
+        const avatarEl = aiBar.querySelector('.avatar');
+        if (avatarEl) avatarEl.textContent = '🙋';
+        aiMeta.textContent = opponentName;
+        const nameEl = aiBar.querySelector('.name');
+        if (nameEl) nameEl.textContent = opponentEmoji + ' ' + opponentName;
+        if (engineStatusEl) engineStatusEl.style.display = 'none';
+      } else if (this.isSpectator) {
+        // 观战模式
+        aiMeta.textContent = '红方玩家';
+        const nameEl = aiBar.querySelector('.name');
+        if (nameEl) nameEl.textContent = '🔴 红方';
+        const avatarEl = aiBar.querySelector('.avatar');
+        if (avatarEl) avatarEl.textContent = '👤';
+        if (engineStatusEl) engineStatusEl.style.display = 'none';
       } else {
-        aiMeta.textContent = `第 ${this.ai.level} 级 · ${this.ai.getTitle()}`;
+        // AI 模式
+        const avatarEl = aiBar.querySelector('.avatar');
+        if (avatarEl) avatarEl.textContent = '🤖';
+        const nameEl = aiBar.querySelector('.name');
+        if (nameEl) nameEl.textContent = 'AI 对手';
+        if (this.isAiThinking) {
+          aiMeta.innerHTML = `第 ${this.ai.level} 级 · ${this.ai.getTitle()}<span class="thinking-dots"><span></span><span></span><span></span></span>`;
+        } else {
+          aiMeta.textContent = `第 ${this.ai.level} 级 · ${this.ai.getTitle()}`;
+        }
       }
     }
 
@@ -1020,7 +1056,7 @@ class BoardRenderer {
     for (let i = 0; i < stepsToUndo; i++) {
       this.game.undo();
     }
-    this.stepTimer[this.game.state.activeColor] = 60;
+    this.stepTimer[this.game.state.activeColor] = this._stepTime();
 
     this.selected = null;
     this.lastMove = this.game.history.length > 0

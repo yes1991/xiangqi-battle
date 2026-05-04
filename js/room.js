@@ -117,7 +117,7 @@ BoardRenderer.prototype._applyRemoteMove = function (fromR, fromC, toR, toC) {
   if (success) {
     this.playMoveSound();
     this.lastMove = { fromR, fromC, toR, toC };
-    this.stepTimer[this.game.state.activeColor] = 60;
+    this.stepTimer[this.game.state.activeColor] = this._stepTime();
     this.render();
     this.updatePanel();
     if (!this.timerInterval && !this.game.result) this._startTimer();
