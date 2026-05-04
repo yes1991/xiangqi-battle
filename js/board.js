@@ -27,6 +27,7 @@ class BoardRenderer {
     this.isSpectator = false;
     this.lastSeenMoveNumber = 0;
     this.roomPollTimer = null;
+    this._roomServerStatus = '';  // 服务器端房间状态
     this.init();
   }
 
@@ -1051,8 +1052,9 @@ class BoardRenderer {
     this.selected = null;
     this.lastMove = null;
     this.isAiThinking = false;
-    this.stepTimer = { w: 60, b: 60 };
-    this.totalTimers = { w: 1200, b: 1200 };
+    const st = this._stepTime();
+    this.stepTimer = { w: st, b: st };
+    this.totalTimers = { w: st * 20, b: st * 20 };
     this.clearHints();
     this.drawBoard();
     this.render();
@@ -1061,7 +1063,8 @@ class BoardRenderer {
     if (resultOverlay) resultOverlay.classList.remove('visible');
     this._clearSnapshot();
     this._startTimer();
-    if (this.playerSide === 'b' && !this.game.result) {
+    // 只有AI模式且玩家执黑时才触发AI先行
+    if (this.playerSide === 'b' && !this.game.result && !this.roomCode) {
       setTimeout(() => this.triggerAi(), 600);
     }
   }

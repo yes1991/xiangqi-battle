@@ -44,6 +44,9 @@ BoardRenderer.prototype.createRoom = async function (gameType, aiLevel) {
     this.roomPlayerSide = 'w';
     this.isSpectator = false;
     this.lastSeenMoveNumber = 0;
+    this._roomServerStatus = (gameType === 'pvp') ? 'waiting' : 'playing';
+    // 重启棋盘，确保干净初始状态
+    this.restart();
     this._startRoomPolling();
     this._updateRoomUI();
     this.updatePanel();
@@ -58,12 +61,17 @@ BoardRenderer.prototype.joinRoom = async function (code) {
   try {
     const res = await api.joinRoom(code);
     this.roomCode = res.room_code;
+    this.roomGameType = res.game_type || 'ai';  // ← 从服务器获取房间类型
     this.roomPlayerSide = res.player_side;
     this.isSpectator = res.is_spectator || false;
     this.lastSeenMoveNumber = 0;
+    this._roomServerStatus = 'playing';  // 加入后即开打
+
+    // 重启棋盘到初始状态
+    this.restart();
 
     if (this.isSpectator) {
-      // 观战模式：获取当前FEN并应用
+      // 观战模式：获取当前FEN并同步
       const state = await api.get('/api/room/' + this.roomCode + '/state');
       if (state.current_fen && state.move_count > 0) {
         this._applyFEN(state.current_fen);
@@ -135,6 +143,7 @@ BoardRenderer.prototype._startRoomPolling = function () {
     try {
       const res = await api.roomPoll(this.roomCode, this.lastSeenMoveNumber);
       const newMoves = res.moves || [];
+      this._roomServerStatus = res.status;  // 保存服务器状态
 
       for (const m of newMoves) {
         if (this.isSpectator) {
@@ -209,6 +218,8 @@ BoardRenderer.prototype._updateRoomUI = function () {
       roomStatusText.textContent = '对局已结束';
     } else if (this.isSpectator) {
       roomStatusText.textContent = '观战中';
+    } else if (this._roomServerStatus === 'waiting') {
+      roomStatusText.textContent = '等待对手加入...';
     } else if (this.roomGameType === 'pvp' && this.game.state.activeColor !== this.roomPlayerSide) {
       roomStatusText.textContent = '等待对手走棋...';
     } else {
@@ -256,6 +267,7 @@ BoardRenderer.prototype._leaveRoom = function () {
   this.roomCode = null;
   this.isSpectator = false;
   this.roomGameType = 'ai';
+  this._roomServerStatus = '';
   this._updateRoomUI();
   this.restart();
 };

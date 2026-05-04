@@ -207,6 +207,7 @@ def join_room(
         player_side="b",
         share_url=f"{BASE_URL}/?room={room.room_code}",
         is_spectator=is_spectator,
+        game_type=room.game_type,
     )
 
 

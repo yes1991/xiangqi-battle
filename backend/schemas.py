@@ -60,6 +60,7 @@ class RoomJoinResponse(BaseModel):
     player_side: str
     share_url: str
     is_spectator: bool = False
+    game_type: str = "ai"
 
 
 class MoveRequest(BaseModel):
