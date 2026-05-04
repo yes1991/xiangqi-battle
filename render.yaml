@@ -2,10 +2,10 @@
 
 services:
   - type: web
-    name: xiangqi
+    name: xiangqilaoweng
     env: python
     buildCommand: pip install -r backend/requirements.txt
     startCommand: cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: BASE_URL
-        value: https://xiangqi.onrender.com
+        value: https://xiangqilaoweng.onrender.com
