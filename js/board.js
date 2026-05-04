@@ -665,7 +665,13 @@ class BoardRenderer {
     }
 
     if (userMeta) {
-      userMeta.textContent = this.playerSide === 'w' ? '执红先行' : '执黑后行';
+      if (this.roomCode && this.roomGameType === 'pvp') {
+        userMeta.textContent = '老翁朋友们 对战中';
+      } else if (this.isSpectator) {
+        userMeta.textContent = '观战中';
+      } else {
+        userMeta.textContent = this.playerSide === 'w' ? '执红先行' : '执黑后行';
+      }
     }
     if (userNameDisplay) {
       userNameDisplay.textContent = this.currentUser ? this.currentUser.username : '游客';
@@ -691,7 +697,19 @@ class BoardRenderer {
     if (statLoss) statLoss.textContent = this.progress.losses;
     if (statLevel) statLevel.textContent = this.progress.currentLevel;
     if (statMaxLevel) statMaxLevel.textContent = this.progress.maxLevel;
-    if (aiSelect) aiSelect.value = String(this.progress.currentLevel);
+    if (aiSelect) {
+      aiSelect.value = String(this.progress.currentLevel);
+      // PvP/观战模式：隐藏AI等级选择
+      if ((this.roomCode && this.roomGameType === 'pvp') || this.isSpectator) {
+        aiSelect.style.display = 'none';
+      } else {
+        aiSelect.style.display = '';
+      }
+    }
+
+    // 统计面板：PvP模式下隐藏"当前挑战"/"最高通关"（AI进度相关）
+    if (statLevel) statLevel.parentElement.style.display = (this.roomCode && this.roomGameType === 'pvp') ? 'none' : '';
+    if (statMaxLevel) statMaxLevel.parentElement.style.display = (this.roomCode && this.roomGameType === 'pvp') ? 'none' : '';
 
     // 控制面板按钮显隐
     const btnRestart = document.getElementById('btnRestart');
