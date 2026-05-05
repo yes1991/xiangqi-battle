@@ -45,19 +45,27 @@ BoardRenderer.prototype._setupRoomButtons = function () {
       pvpLabel.id = 'pvpLabel';
       pvpLabel.className = 'ai-select pvp-label';
       pvpLabel.textContent = '👥 人类棋局';
-      pvpLabel.style.display = 'none';
+      pvpLabel.hidden = true;
       aiLevelSelect.parentNode.insertBefore(pvpLabel, aiLevelSelect.nextSibling);
     }
 
-    roomGameType.addEventListener('change', () => {
+    const toggleModeUI = () => {
       if (roomGameType.value === 'pvp') {
+        aiLevelSelect.style.display = 'none';
         aiLevelSelect.hidden = true;
+        pvpLabel.style.display = '';
         pvpLabel.hidden = false;
       } else {
+        aiLevelSelect.style.display = '';
         aiLevelSelect.hidden = false;
+        pvpLabel.style.display = 'none';
         pvpLabel.hidden = true;
       }
-    });
+    };
+
+    roomGameType.addEventListener('change', toggleModeUI);
+    // 页面初始加载时也执行一次
+    toggleModeUI();
   }
 };
 
@@ -232,6 +240,13 @@ BoardRenderer.prototype._updateRoomUI = function () {
     if (spectatorBadge) spectatorBadge.style.display = 'none';
     if (btnCreateRoom) btnCreateRoom.style.display = 'inline-block';
     if (roomGameType) roomGameType.style.display = 'inline-block';
+    // 恢复模式切换状态
+    const pvpLabel = document.getElementById('pvpLabel');
+    const aiLevelSelect = document.getElementById('aiLevelSelect');
+    if (roomGameType && roomGameType.value === 'pvp') {
+      if (aiLevelSelect) { aiLevelSelect.style.display = 'none'; aiLevelSelect.hidden = true; }
+      if (pvpLabel) { pvpLabel.style.display = ''; pvpLabel.hidden = false; }
+    }
     return;
   }
 
@@ -239,6 +254,11 @@ BoardRenderer.prototype._updateRoomUI = function () {
   if (roomInfo) roomInfo.style.display = 'flex';
   if (btnCreateRoom) btnCreateRoom.style.display = 'none';
   if (roomGameType) roomGameType.style.display = 'none';
+  // 有房间时隐藏等级选择器和PvP标签
+  const pvpLabel2 = document.getElementById('pvpLabel');
+  const aiLevelSelect2 = document.getElementById('aiLevelSelect');
+  if (aiLevelSelect2) { aiLevelSelect2.style.display = 'none'; aiLevelSelect2.hidden = true; }
+  if (pvpLabel2) { pvpLabel2.style.display = 'none'; pvpLabel2.hidden = true; }
 
   if (roomCodeDisplay) {
     roomCodeDisplay.textContent = this.roomCode;
@@ -303,11 +323,13 @@ BoardRenderer.prototype._leaveRoom = function () {
   this.isSpectator = false;
   this.roomGameType = 'ai';
   this._roomServerStatus = '';
-  // 恢复AI等级选择器
+  // 恢复AI等级选择器 + 切换模式UI
+  const roomGameType = document.getElementById('roomGameType');
   const aiLevelSelect = document.getElementById('aiLevelSelect');
-  if (aiLevelSelect) aiLevelSelect.style.display = '';
   const pvpLabel = document.getElementById('pvpLabel');
-  if (pvpLabel) pvpLabel.style.display = 'none';
+  if (roomGameType) roomGameType.value = 'ai';
+  if (aiLevelSelect) { aiLevelSelect.style.display = ''; aiLevelSelect.hidden = false; }
+  if (pvpLabel) { pvpLabel.style.display = 'none'; pvpLabel.hidden = true; }
   this._updateRoomUI();
   this.restart();
 };
